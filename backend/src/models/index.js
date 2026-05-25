@@ -1,7 +1,15 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const config = require('../config/database');
 
-const sequelize = new Sequelize(config.development);
+const env = process.env.NODE_ENV || 'development';
+const dbConfig = config[env] || config.development;
+
+const sequelize = new Sequelize(dbConfig);
+
+// 启动后尝试连接数据库（失败不阻塞服务）
+sequelize.authenticate()
+  .then(() => console.log('Database connection established'))
+  .catch(err => console.error('Database connection failed:', err.message, '- server will continue without DB'));
 
 const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
