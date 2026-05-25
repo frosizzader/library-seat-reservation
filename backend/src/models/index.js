@@ -111,14 +111,29 @@ if (sequelize) {
   User.hasMany(SystemLog, { foreignKey: 'user_id' });
   SystemLog.belongsTo(User, { foreignKey: 'user_id' });
 
-  // 启动后尝试连接数据库并同步表结构（失败不阻塞服务）
-  sequelize.authenticate()
-    .then(() => {
-      console.log('Database connection established');
-      return sequelize.sync({ alter: true });
-    })
-    .then(() => console.log('Database tables synced'))
-    .catch(err => console.error('Database connection failed:', err.message, '- server will continue without DB'));
+  // 启动后尝试连接数据库（带重试，最多等60秒让数据库就绪）
+  const MAX_RETRIES = 12;
+  const RETRY_DELAY = 5000;
+
+  async function connectWithRetry() {
+    for (let i = 1; i <= MAX_RETRIES; i++) {
+      try {
+        await sequelize.authenticate();
+        console.log('Database connection established');
+        await sequelize.sync({ alter: true });
+        console.log('Database tables synced');
+        return;
+      } catch (err) {
+        console.warn(`Database connection attempt ${i}/${MAX_RETRIES} failed: ${err.message}`);
+        if (i < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, RETRY_DELAY));
+        }
+      }
+    }
+    console.error('All database connection retries failed - server will continue without DB');
+  }
+
+  connectWithRetry();
 } else {
   // 无数据库：创建空对象避免路由加载时解构报错
   console.warn('Models not initialized - no database connection available');
