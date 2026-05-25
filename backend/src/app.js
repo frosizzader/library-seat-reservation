@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const routes = require('./routes');
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(logger);
 
+// API 路由
 app.use('/api/v1', routes);
 
 app.get('/health', (req, res) => {
@@ -27,10 +29,21 @@ app.get('/admin-test-reservations', async (req, res) => {
   res.json({ count: all.length, data: all.map(r => ({id:r.id, user_id:r.user_id, status:r.status})) });
 });
 
+// ======== 生产环境：服务前端静态文件 ========
+const publicDir = path.join(__dirname, '..', 'public');
+app.use(express.static(publicDir));
+
+// SPA fallback：所有非 API 路由返回 index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+// ========================================
+
 app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Static files from: ${publicDir}`);
 });
 
 module.exports = app;

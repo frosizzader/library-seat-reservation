@@ -1,20 +1,28 @@
-# 使用 Node.js 18 基础镜像
+# ==================== 阶段1：构建前端 ====================
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /frontend
+COPY frontend/package.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# ==================== 阶段2：后端运行镜像 ====================
 FROM node:18-alpine
 
-# 设置工作目录
 WORKDIR /app
 
-# 先复制 package.json 和 lock 文件（利用缓存层）
+# 复制后端依赖配置并安装
 COPY backend/package.json ./
-
-# 安装依赖
 RUN npm install --production
 
-# 复制后端源代码
+# 复制后端源码
 COPY backend/ ./
 
-# 暴露端口（Render 会通过 PORT 环境变量设置端口）
+# 从前端构建阶段复制打包好的静态文件
+COPY --from=frontend-builder /frontend/dist ./public
+
+# Railway / Render 通过 PORT 环境变量设置端口
 EXPOSE 3000
 
-# 启动应用
 CMD ["node", "src/app.js"]
