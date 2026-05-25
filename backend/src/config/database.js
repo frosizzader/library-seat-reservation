@@ -70,10 +70,3 @@ module.exports = {
   development: dbConfig,
   production: dbConfig
 };
-
-const dbConfig = getDatabaseConfig();
-
-module.exports = {
-  development: dbConfig,
-  production: dbConfig
-};
