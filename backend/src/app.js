@@ -18,14 +18,35 @@ const logger = require('./middlewares/logger');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 简化 helmet 配置，避免 CSP 策略干扰
-// 注意：helmet 可能影响 Railway 反向代理的 POST 请求转发
+// CORS 必须在 helmet 之前，确保预检请求（OPTIONS）能正确返回跨域头
+// 生产环境：允许前端域名 + Railway 部署域名
+const allowedOrigins = [
+  'https://library-seat-reservation-production-02a6.up.railway.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // 允许没有 origin 的请求（如 Postman、curl、服务器端调用）
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn('[CORS] Blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// 简化 helmet 配置，避免干扰 CORS 和 API 请求
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(logger);
