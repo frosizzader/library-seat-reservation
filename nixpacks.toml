@@ -1,18 +1,22 @@
-# Nixpacks 构建配置
+# Railway Nixpacks 构建配置
+# 强制使用 Node.js provider，忽略前端 Vite 自动检测
+
 [variables]
+  NIXPACKS_NODE_VERSION = "18"
   npm_config_production = "false"
 
-# 安装阶段：同时安装前后端依赖
+# Provider: 强制 Node.js
+[phases.setup]
+nixPkgs = ["nodejs_18"]
+
+# 安装依赖：前后端都装
 [phases.install]
-commands = [
-    "cd frontend && npm install",
-    "cd /workspace && cd backend && npm install --omit=dev"
-]
+cmds = ["cd /workspace/frontend && npm install", "cd /workspace/backend && npm install --omit=dev"]
 
-# 构建阶段：构建前端并复制产物
+# 构建：构建前端，复制到 backend/public/
 [phases.build]
-commands = ["cd /workspace/frontend && npm run build", "mkdir -p /workspace/backend/public && cp -r /workspace/frontend/dist/* /workspace/backend/public/"]
+cmds = ["cd /workspace/frontend && npm run build", "mkdir -p /workspace/backend/public && cp -r /workspace/frontend/dist/* /workspace/backend/public/"]
 
-# 启动命令
+# 启动后端
 [start]
-command = "cd backend && node src/app.js"
+cmd = "cd /workspace/backend && node src/app.js"
