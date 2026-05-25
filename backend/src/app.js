@@ -19,9 +19,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 简化 helmet 配置，避免 CSP 策略干扰
+// 注意：helmet 可能影响 Railway 反向代理的 POST 请求转发
 app.use(helmet({
   contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(cors());
 app.use(express.json());
@@ -60,6 +62,12 @@ try {
   });
   app.use('/api/v1', fallbackRouter);
 }
+
+// API 兜底：捕获所有未被路由匹配的 /api/ 请求，返回明确错误而非 405
+app.use('/api/v1', (req, res) => {
+  console.log('[API 405] Unmatched API request:', req.method, req.originalUrl);
+  res.status(405).json({ code: 405, message: `API method ${req.method} ${req.path} not allowed`, data: null });
+});
 
 // 静态文件中间件：显式排除 /api/ 路径，避免拦截 API 请求导致 405
 app.use((req, res, next) => {
