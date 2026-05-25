@@ -5,6 +5,14 @@ require('dotenv').config();
  * 如果 DATABASE_URL 存在则优先使用，否则使用独立的环境变量
  */
 function getDatabaseConfig() {
+  let mysql2;
+  try {
+    mysql2 = require('mysql2');
+  } catch (e) {
+    console.warn('mysql2 module not available, using default dialect');
+    mysql2 = undefined;
+  }
+
   const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
   if (dbUrl) {
     const url = new URL(dbUrl);
@@ -15,7 +23,7 @@ function getDatabaseConfig() {
       host: url.hostname,
       port: url.port || 3306,
       dialect: 'mysql',
-      dialectModule: require('mysql2'),
+      dialectModule: mysql2,
       logging: false
     };
   }
@@ -28,7 +36,7 @@ function getDatabaseConfig() {
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
-    dialectModule: require('mysql2'),
+    dialectModule: mysql2,
     logging: false
   };
 }

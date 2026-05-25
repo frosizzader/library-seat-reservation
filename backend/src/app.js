@@ -1,11 +1,17 @@
+// 最高优先级：全局异常捕获，必须在所有 require 之前注册
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.message, err.stack);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
-const compression = require('compression');
-const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 const logger = require('./middlewares/logger');
 
@@ -51,8 +57,25 @@ app.use(express.static(publicDir, {
 }));
 // =========================================================
 
-// API 路由
-app.use('/api/v1', routes);
+// API 路由（容错加载：路由加载失败不会阻塞服务启动）
+let routes;
+try {
+  routes = require('./routes');
+  app.use('/api/v1', routes);
+  console.log('API routes loaded successfully');
+} catch (err) {
+  console.error('Failed to load API routes:', err.message);
+  // 注册一个降级路由，返回友好错误信息
+  const fallbackRouter = express.Router();
+  fallbackRouter.all('*', (req, res) => {
+    res.status(503).json({
+      code: 503,
+      message: '服务正在初始化，请稍后再试',
+      data: { error: 'routes_not_loaded', detail: err.message }
+    });
+  });
+  app.use('/api/v1', fallbackRouter);
+}
 
 app.get('/health', (req, res) => {
   res.json({ code: 200, message: 'OK', data: { status: 'running' } });
@@ -115,14 +138,6 @@ app.get('*', (req, res, next) => {
 });
 
 app.use(errorHandler);
-
-// 全局未捕获异常处理，防止进程崩溃
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err.message);
-});
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
-});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
