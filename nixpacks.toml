@@ -1,0 +1,18 @@
+# Nixpacks 构建配置
+[variables]
+  npm_config_production = "false"
+
+# 安装阶段：同时安装前后端依赖
+[phases.install]
+commands = [
+    "cd frontend && npm install",
+    "cd /workspace && cd backend && npm install --omit=dev"
+]
+
+# 构建阶段：构建前端并复制产物
+[phases.build]
+commands = ["cd /workspace/frontend && npm run build", "mkdir -p /workspace/backend/public && cp -r /workspace/frontend/dist/* /workspace/backend/public/"]
+
+# 启动命令
+[start]
+command = "cd backend && node src/app.js"
