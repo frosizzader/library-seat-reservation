@@ -1,0 +1,13 @@
+# Railway 部署配置：强制使用 backend/ 作为服务根目录
+# 防止 Railpack 将项目误判为 Vite 静态站点
+
+[build]
+root = "backend/"
+builder = "nixpacks"
+
+[build.nixpacks]
+nixPkgs = ["nodejs"]
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/health"
