@@ -4,8 +4,8 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /frontend
 
 # 先复制依赖文件（利用 Docker 层缓存）
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
+COPY frontend/package.json ./
+RUN npm install
 
 # 复制源码并构建
 COPY frontend/ ./
@@ -17,8 +17,8 @@ FROM node:18-alpine
 WORKDIR /app
 
 # 复制后端依赖配置并安装
-COPY backend/package.json backend/package-lock.json* ./
-RUN npm ci --production
+COPY backend/package.json ./
+RUN npm install --omit=dev
 
 # 复制后端源码
 COPY backend/ ./
