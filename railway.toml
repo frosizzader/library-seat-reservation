@@ -1,9 +1,10 @@
-# Railway 部署配置：使用 Dockerfile 构建
-# Dockerfile 会先构建前端，再将产物放进后端 public/，最后启动 Node 服务
+# Railway 部署配置
 
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "nixpacks"
+installCommand = "npm run install:all"
+buildCommand = "npm run build"
 
 [deploy]
+startCommand = "npm start"
 healthcheckPath = "/health"
