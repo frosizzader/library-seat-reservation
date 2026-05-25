@@ -6,9 +6,14 @@ const dbConfig = config[env] || config.development;
 
 const sequelize = new Sequelize(dbConfig);
 
-// 启动后尝试连接数据库（失败不阻塞服务）
+// 启动后尝试连接数据库并同步表结构（失败不阻塞服务）
 sequelize.authenticate()
-  .then(() => console.log('Database connection established'))
+  .then(() => {
+    console.log('Database connection established');
+    // 自动创建/更新表结构（开发/初始化阶段使用）
+    return sequelize.sync({ alter: true });
+  })
+  .then(() => console.log('Database tables synced'))
   .catch(err => console.error('Database connection failed:', err.message, '- server will continue without DB'));
 
 const User = sequelize.define('User', {
@@ -20,7 +25,9 @@ const User = sequelize.define('User', {
   email: { type: DataTypes.STRING(100) },
   role: { type: DataTypes.ENUM('student', 'admin', 'super_admin'), defaultValue: 'student' },
   status: { type: DataTypes.ENUM('active', 'banned'), defaultValue: 'active' },
-  violation_count: { type: DataTypes.INTEGER, defaultValue: 0 }
+  violation_count: { type: DataTypes.INTEGER, defaultValue: 0 },
+  is_online: { type: DataTypes.BOOLEAN, defaultValue: false },
+  last_active: { type: DataTypes.DATE }
 }, { tableName: 'users', timestamps: true });
 
 const Area = sequelize.define('Area', {

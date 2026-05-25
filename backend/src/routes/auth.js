@@ -57,14 +57,17 @@ router.post('/login',
         return res.status(403).json(response.fail('账户已被禁用'));
       }
 
-      // 单点登录校验
-      const STALE_TIME = 15 * 60 * 1000;
-      if (user.is_online && user.last_active && (new Date() - user.last_active < STALE_TIME)) {
-        return res.status(403).json(response.fail('该账号已在其他地方登录，请先下线或等待15分钟'));
+      // 单点登录校验（容错处理）
+      try {
+        const STALE_TIME = 15 * 60 * 1000;
+        if (user.is_online && user.last_active && (new Date() - user.last_active < STALE_TIME)) {
+          return res.status(403).json(response.fail('该账号已在其他地方登录，请先下线或等待15分钟'));
+        }
+        await user.update({ is_online: true, last_active: new Date() });
+      } catch (e) {
+        // 字段不存在时忽略单点登录检查
+        console.warn('SSO check skipped:', e.message);
       }
-
-      // 更新在线状态
-      await user.update({ is_online: true, last_active: new Date() });
 
       const token = jwt.sign(
         { userId: user.id, role: user.role },
