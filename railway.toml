@@ -2,7 +2,7 @@
 # Dockerfile 会先构建前端，再将产物放进后端 public/，最后启动 Node 服务
 
 [build]
-builder = "docker"
+builder = "DOCKERFILE"
 
 [deploy]
 healthcheckPath = "/health"
