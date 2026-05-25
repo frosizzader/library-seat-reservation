@@ -10,7 +10,7 @@ const errorHandler = require('./middlewares/errorHandler');
 const logger = require('./middlewares/logger');
 
 const app = express();
-const PORT = process.env.PORT || 300;
+const PORT = process.env.PORT || 3000;
 
 // 压缩响应
 app.use(compression());
@@ -66,12 +66,50 @@ app.get('/admin-test-reservations', async (req, res) => {
   }
 });
 
+// 诊断端点，无需数据库即可检查服务状态
+app.get('/diagnostic', (req, res) => {
+  const indexExists = fs.existsSync(path.join(publicDir, 'index.html'));
+  const assetsDir = path.join(publicDir, 'assets');
+  const assetsExist = fs.existsSync(assetsDir);
+  let assetFiles = [];
+  try {
+    if (assetsExist) assetFiles = fs.readdirSync(assetsDir);
+  } catch (e) { /* ignore */ }
+
+  res.json({
+    code: 200,
+    message: 'OK',
+    data: {
+      status: 'running',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      node_version: process.version,
+      platform: process.platform,
+      public_dir_exists: fs.existsSync(publicDir),
+      index_html_exists: indexExists,
+      assets_exist: assetsExist,
+      asset_files: assetFiles,
+      api_base_url: process.env.VITE_API_BASE_URL || '/api/v1'
+    }
+  });
+});
+
 // SPA fallback：仅对不带扩展名的路由返回 index.html
 app.get('*', (req, res, next) => {
   if (path.extname(req.path)) {
     return next();
   }
-  res.sendFile(path.join(publicDir, 'index.html'));
+  const indexPath = path.join(publicDir, 'index.html');
+  if (!fs.existsSync(indexPath)) {
+    console.error(`[SPA fallback] index.html not found at: ${indexPath}`);
+    return res.status(500).send(`<h1>Deployment Error</h1><p>index.html not found. Check Docker build.</p><pre>Expected at: ${indexPath}</pre>`);
+  }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error(`[SPA fallback] Error sending index.html:`, err.message);
+    }
+  });
 });
 
 app.use(errorHandler);
