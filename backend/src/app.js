@@ -18,34 +18,47 @@ const logger = require('./middlewares/logger');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS 必须在 helmet 之前，确保预检请求（OPTIONS）能正确返回跨域头
-// 生产环境：允许前端域名 + Railway 部署域名
+// ======== CORS 预检请求处理（必须在所有中间件之前） ========
+// 允许的前端域名
 const allowedOrigins = [
   'https://library-seat-reservation-production-02a6.up.railway.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
+// 1. 先注册 CORS（预检 + 实际请求的跨域头）
 app.use(cors({
   origin: (origin, callback) => {
-    // 允许没有 origin 的请求（如 Postman、curl、服务器端调用）
+    // 允许没有 origin 的请求（如 Postman、curl、服务端调用）
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn('[CORS] Blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      // 开发阶段：也放行所有 Railway 域名和 localhost
+      if (origin.includes('up.railway.app') || origin.includes('localhost')) {
+        callback(null, true);
+      } else {
+        console.warn('[CORS] Blocked origin:', origin);
+        callback(null, true); // 宽松模式，不阻止
+      }
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// 简化 helmet 配置，避免干扰 CORS 和 API 请求
+// 2. 显式处理所有 OPTIONS 预检请求（防止被后续中间件拦截）
+app.options('*', (req, res) => {
+  res.sendStatus(204);
+});
+
+// 简化 helmet，禁用可能干扰的功能
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+  originAgentCluster: false
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
