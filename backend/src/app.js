@@ -61,18 +61,23 @@ try {
   app.use('/api/v1', fallbackRouter);
 }
 
-// 静态文件：放在 API 路由之后，确保 /api/* 请求不会被 static 中间件拦截
-app.use(express.static(publicDir, {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.js')) {
-      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-    } else if (filePath.endsWith('.css')) {
-      res.setHeader('Content-Type', 'text/css; charset=utf-8');
-    }
-    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-    res.removeHeader('Transfer-Encoding');
+// 静态文件中间件：显式排除 /api/ 路径，避免拦截 API 请求导致 405
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
   }
-}));
+  return express.static(publicDir, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      } else if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      }
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      res.removeHeader('Transfer-Encoding');
+    }
+  })(req, res, next);
+});
 // =========================================================
 
 app.get('/health', (req, res) => {
@@ -117,8 +122,11 @@ app.get('/diagnostic', (req, res) => {
   });
 });
 
-// SPA fallback：仅对不带扩展名的路由返回 index.html
+// SPA fallback：仅对不带扩展名的非API路由返回 index.html
 app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
   if (path.extname(req.path)) {
     return next();
   }
