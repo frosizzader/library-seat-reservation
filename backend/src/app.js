@@ -12,10 +12,7 @@ const logger = require('./middlewares/logger');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 压缩响应
-app.use(compression());
-
-// 简化 helmet 配置，避免 CSP 等策略干扰
+// 简化 helmet 配置，避免 CSP 策略干扰
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
@@ -37,14 +34,19 @@ if (fs.existsSync(publicDir)) {
   console.error(`Static files directory NOT found: ${publicDir}`);
 }
 
+// 静态文件：不使用缓存头，避免 Railway 反向代理与 compression 冲突
+// 不使用 compression 中间件（Railway 自带 gzip/brotli）
 app.use(express.static(publicDir, {
-  maxAge: '1d',
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.js')) {
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
     } else if (filePath.endsWith('.css')) {
       res.setHeader('Content-Type', 'text/css; charset=utf-8');
     }
+    // 不设置强缓存，让浏览器每次验证
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    // 禁用传输编码，防止与 Railway 代理冲突
+    res.removeHeader('Transfer-Encoding');
   }
 }));
 // =========================================================
